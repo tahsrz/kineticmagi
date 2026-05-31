@@ -1,0 +1,21 @@
+# .NET build output
+bin/
+obj/
+
+# Unreal and generated content
+TahWorldClient/Binaries/
+TahWorldClient/DerivedDataCache/
+TahWorldClient/Intermediate/
+TahWorldClient/Saved/
+
+# Tooling caches
+.vs/
+.antigravity/
+.antigravitycli/
+
+# OS/editor noise
+*.user
+*.suo
+*.swp
+Thumbs.db
+Desktop.ini

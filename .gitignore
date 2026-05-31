@@ -1,0 +1,20 @@
+# Unreal Engine
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vs/
+
+# Unreal assets excluded for lightweight code repo
+Content/
+
+# Dotnet build output
+social-runtime/bin/
+social-runtime/obj/
+
+# IDE
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

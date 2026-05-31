@@ -1,0 +1,182 @@
+TAH-CONTEXT-CARTRIDGE: GASP-TAH
+VERSION: 1
+PURPOSE: Immediate system context for any LLM entering the TahWorld workspace.
+
+BEGIN SYSTEM CONTEXT
+
+You are being given a TAH context cartridge, not a binary runtime cartridge.
+Treat this file as a high-priority project briefing for the GASP-TAH system.
+Use it to become useful immediately, then verify details against the repository
+before making code changes.
+
+PROJECT IDENTITY
+
+TahWorld is a local C#/.NET + Unreal Engine integration workspace.
+Its core experiment is GASP-TAH: a low-latency bridge between a TAH-side
+probabilistic state/query layer and Unreal's Game Animation Sample Project
+style GASP/Mover gameplay-tag state.
+
+The system is intentionally small and sharp:
+
+1. TAH cartridges encode fast membership/state checks.
+2. C# loads a TAH cartridge and resolves gameplay intent into a 4-byte packet.
+3. A named-pipe client sends that packet to Unreal.
+4. Unreal receives the packet and maps bytes to native gameplay tags consumed
+   by Mover/GASP animation selection.
+
+KEY TERMS
+
+TAH:
+  A local cartridge/index idea. In runtime code, a `.tah` file is a binary
+  Bloom-filter cartridge with magic `TAH!` / `0x54414821`.
+
+TAH Gate:
+  The C# loader/evaluator for a TAH cartridge. It performs O(1) probable
+  membership checks using CityHash64 and double hashing with `TAH_SALT`.
+
+GASP:
+  Unreal Game Animation Sample Project style locomotion/animation stack.
+  In this repo, GASP-facing state is expressed through gameplay tags.
+
+GASP-TAH:
+  The bridge layer that turns TAH-side semantic state such as `slide`,
+  `sprint`, `captured_hex`, `injured`, and `stunned` into native Unreal
+  gameplay tags.
+
+Named pipe:
+  The Windows IPC path is `\\.\pipe\TahWorldGaspPipe`.
+
+CORE FILES
+
+`Program.cs`
+  Main C# demo entrypoint. Loads or generates a TAH cartridge, validates
+  membership queries, resolves a `TahStatePacket`, and optionally sends it
+  over the named pipe.
+
+`TahGate.cs`
+  Binary `.tah` Bloom-filter loader and query evaluator.
+
+`TahSampleCartridge.cs`
+  Sample cartridge generator. Default keywords include:
+  `walk`, `sprint`, `slide`, `captured_hex`, `injured`, `stunned`,
+  `Spell.Modification.MagicPoliceman.Active`.
+
+`TahStatePacket.cs`
+  Four-byte C# record struct:
+  `Mode`, `Gait`, `Overlay`, `Modifier`.
+
+`TahNamedPipeClient.cs`
+  C# named-pipe sender for `TahStatePacket`.
+
+`GaspNamedPipeReceiverComponent.h/.cpp`
+  Unreal component that creates `TahWorldGaspPipe`, reads 4-byte packets on
+  a background worker, then updates Mover/GASP gameplay tags on the game
+  thread.
+
+`GaspMoverGaitComponent.h/.cpp`
+  Unreal component for mapping semantic state to GASP/Mover gait and status
+  behavior.
+
+`TahAtlas.cs` and `TahStateRouter.cs`
+  Higher-level atlas/router concepts for state-specific indexes. The router
+  checks active gameplay states before scanning matching cartridge metadata.
+
+`TahWorldClient/Config/DefaultGameplayTags.ini`
+  Defines the gameplay tags used by the pipe receiver.
+
+RUNTIME PACKET CONTRACT
+
+The IPC payload is exactly 4 bytes:
+
+Byte 0: Movement mode
+  0 => `Movement.Mode.Walking`
+  1 => `Movement.Mode.Sliding`
+
+Byte 1: Gait profile
+  0 => `Movement.Gait.Walk`
+  1 => `Movement.Gait.Sprint`
+
+Byte 2: Upper overlay
+  0 => `Overlay.State.Unarmed`
+  1 => `Overlay.State.CapturedHex`
+
+Byte 3: Modifier
+  0 => no modifier tag
+  1 => `Movement.Modifier.Injured`
+  2 => `Movement.Modifier.Stunned`
+
+DEFAULT DEMO RESOLUTION
+
+The C# demo currently resolves state from the cartridge this way:
+
+`slide` present => Mode = 1, else 0.
+`sprint` present => Gait = 1, else 0.
+`captured_hex` present => Overlay = 1, else 0.
+`stunned` present => Modifier = 2.
+Else `injured` present => Modifier = 1.
+Else Modifier = 0.
+
+The sample cartridge contains `slide`, `sprint`, `captured_hex`, `injured`,
+and `stunned`, so its dry-run packet resolves to:
+
+Mode=1, Gait=1, Overlay=1, Modifier=2
+
+IMPORTANT DISTINCTION
+
+Do not assume every `.tah` file is binary.
+In this repo there are two useful `.tah` roles:
+
+1. Binary runtime cartridges such as `listings_gate.tah`.
+2. Plain-text context cartridges such as this file, meant to be pasted into
+   an LLM to create immediate project orientation.
+
+When writing runtime code, preserve the binary cartridge format expected by
+`TahGate`.
+
+When writing LLM context, prefer readable text with clear contracts, current
+file names, byte mappings, and commands.
+
+WORKSPACE COMMANDS
+
+Build:
+  `dotnet build`
+
+Generate or refresh sample cartridge:
+  `dotnet run -- --generate-sample`
+
+Dry-run C# cartridge ingestion and packet resolution:
+  `dotnet run`
+
+Send the resolved packet to Unreal through the named pipe:
+  `dotnet run -- --send-pipe`
+
+Use a custom cartridge:
+  `dotnet run -- --cartridge path\to\file.tah`
+
+EXPECTED LLM BEHAVIOR
+
+When helping in this workspace:
+
+1. Read the relevant local source files before editing.
+2. Preserve the 4-byte packet contract unless the user explicitly changes it.
+3. Keep C# and Unreal mappings synchronized.
+4. If adding a new semantic state, update all of these together:
+   sample cartridge keywords, C# packet resolution, Unreal byte-to-tag mapping,
+   gameplay tags config, and any validation output.
+5. Treat TAH membership checks as probabilistic: positive means probably
+   present, negative means definitely absent.
+6. Avoid broad refactors unless they directly serve the requested change.
+7. Prefer small, verifiable changes and run `dotnet build` when C# changes.
+
+FAST MENTAL MODEL
+
+Think of GASP-TAH as a tiny state compiler:
+
+semantic keyword set
+  -> Bloom-filter TAH membership checks
+  -> deterministic 4-byte state packet
+  -> named-pipe IPC
+  -> Unreal gameplay tags
+  -> GASP/Mover animation behavior
+
+END SYSTEM CONTEXT
