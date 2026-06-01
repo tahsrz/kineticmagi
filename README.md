@@ -25,3 +25,10 @@
 
 - `LBP_PhysicsSpringMode` is integrated and compiling in the Unreal module.
 - `social-runtime` validates TAH v2 packet headers, routes social payloads, and runs bounded affinity/hook scoring.
+- Procedural town/resource profiles, day-night cycle scaffolding, and night stealth/combat director scaffolding are now in the Unreal client.
+
+## Implementation Order Note
+
+- This project is a proof of concept for game design through a TAH-GASP architecture.
+- We are implementing and stabilizing core C++ gameplay systems first.
+- Porting/indexing those finalized systems into `.tah` files will happen last.
