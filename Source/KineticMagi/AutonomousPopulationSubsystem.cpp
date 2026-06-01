@@ -1,5 +1,6 @@
 #include "AutonomousPopulationSubsystem.h"
 
+#include "DayNightSubsystem.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
@@ -14,6 +15,7 @@ void UAutonomousPopulationSubsystem::Tick(const float DeltaTime)
 
 	DecisionAccumulator = 0.0f;
 	CleanupDeadPawns();
+	ResolveNightRaiders();
 	MakeDecisions();
 	ResolveCombat();
 	CleanupDeadPawns();
@@ -104,6 +106,7 @@ APawn* UAutonomousPopulationSubsystem::SpawnCloneAtLocation(const FVector& Locat
 	NewState.Desires.CombatPower = FMath::FRandRange(0.75f, 1.4f);
 	NewState.Intent = ECloneIntent::Idle;
 	NewState.HealthNormalized = 1.0f;
+	NewState.bNightRaider = false;
 
 	CloneStates.Add(NewState);
 	return SpawnedPawn;
@@ -125,6 +128,19 @@ void UAutonomousPopulationSubsystem::ResolveIntent(FCloneMindState& State)
 		State.Intent = ECloneIntent::Idle;
 		State.TargetPawn = nullptr;
 		return;
+	}
+
+	if (State.bNightRaider)
+	{
+		if (const UDayNightSubsystem* DayNight = GetWorld() ? GetWorld()->GetSubsystem<UDayNightSubsystem>() : nullptr)
+		{
+			if (DayNight->GetCurrentPhase() != EDayPhase::Night)
+			{
+				State.Intent = ECloneIntent::Flee;
+				State.TargetPawn = nullptr;
+				return;
+			}
+		}
 	}
 
 	float Distance = 0.0f;
@@ -261,6 +277,80 @@ void UAutonomousPopulationSubsystem::ResolveCombat()
 	}
 }
 
+void UAutonomousPopulationSubsystem::ResolveNightRaiders()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const UDayNightSubsystem* DayNight = World->GetSubsystem<UDayNightSubsystem>();
+	if (!DayNight)
+	{
+		return;
+	}
+
+	const bool bIsNight = DayNight->GetCurrentPhase() == EDayPhase::Night;
+	if (bIsNight && !bWasNightLastTick)
+	{
+		int32 CurrentRaiders = 0;
+		for (const FCloneMindState& State : CloneStates)
+		{
+			if (State.bNightRaider && State.Pawn.IsValid())
+			{
+				++CurrentRaiders;
+			}
+		}
+
+		const int32 ToSpawn = FMath::Max(0, DesiredNightRaiderCount - CurrentRaiders);
+		const APlayerController* PC = World->GetFirstPlayerController();
+		const APawn* PlayerPawn = PC ? PC->GetPawn() : nullptr;
+		const FVector Center = PlayerPawn ? PlayerPawn->GetActorLocation() : FVector::ZeroVector;
+
+		for (int32 i = 0; i < ToSpawn; ++i)
+		{
+			const FVector Offset = FMath::VRand() * FMath::FRandRange(1500.0f, 5000.0f);
+			if (APawn* Raider = SpawnCloneAtLocation(Center + FVector(Offset.X, Offset.Y, 120.0f)))
+			{
+				const int32 Idx = FindStateIndexByPawn(Raider);
+				if (Idx != INDEX_NONE)
+				{
+					FCloneMindState& State = CloneStates[Idx];
+					State.bNightRaider = true;
+					State.Desires.Aggression = 1.0f;
+					State.Desires.Paranoia = FMath::Max(State.Desires.Paranoia, 0.65f);
+					State.Desires.Mercy = 0.0f;
+				}
+			}
+		}
+	}
+
+	if (!bIsNight)
+	{
+		for (FCloneMindState& State : CloneStates)
+		{
+			if (!State.bNightRaider)
+			{
+				continue;
+			}
+
+			APawn* RaiderPawn = State.Pawn.Get();
+			if (!RaiderPawn || RaiderPawn->IsActorBeingDestroyed())
+			{
+				continue;
+			}
+
+			if (!IsShelteredFromSun(RaiderPawn))
+			{
+				State.HealthNormalized = FMath::Clamp(State.HealthNormalized - DaylightDamagePerDecision, 0.0f, 1.0f);
+			}
+		}
+	}
+
+	bWasNightLastTick = bIsNight;
+}
+
 int32 UAutonomousPopulationSubsystem::FindStateIndexByPawn(const APawn* Pawn) const
 {
 	if (!Pawn)
@@ -291,4 +381,34 @@ uint64 UAutonomousPopulationSubsystem::MakeRelationshipKey(const APawn* A, const
 	const uint32 Low = FMath::Min(AId, BId);
 	const uint32 High = FMath::Max(AId, BId);
 	return (static_cast<uint64>(Low) << 32) | static_cast<uint64>(High);
+}
+
+bool UAutonomousPopulationSubsystem::IsShelteredFromSun(const APawn* Pawn) const
+{
+	if (!Pawn)
+	{
+		return false;
+	}
+
+	TArray<AActor*> OverlappingActors;
+	Pawn->GetOverlappingActors(OverlappingActors);
+	for (const AActor* Actor : OverlappingActors)
+	{
+		if (!Actor)
+		{
+			continue;
+		}
+
+		if (Actor->ActorHasTag(TEXT("Shade")) || Actor->ActorHasTag(TEXT("Tunnel")) || Actor->ActorHasTag(TEXT("SunShelter")))
+		{
+			return true;
+		}
+
+		if (Actor->GetClass()->GetName().Contains(TEXT("SafeHouseVolume")))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }

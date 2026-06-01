@@ -53,6 +53,9 @@ struct FCloneMindState
 
 	UPROPERTY(BlueprintReadOnly, Category = "Clones", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float HealthNormalized = 1.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Clones")
+	bool bNightRaider = false;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCloneConflict, APawn*, Attacker, APawn*, Target);
@@ -100,6 +103,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clones|Combat", meta = (ClampMin = "0.01", ClampMax = "1.0"))
 	float DamagePerDecision = 0.2f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clones|Night Raiders", meta = (ClampMin = "0", ClampMax = "200"))
+	int32 DesiredNightRaiderCount = 8;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clones|Night Raiders", meta = (ClampMin = "0.01", ClampMax = "1.0"))
+	float DaylightDamagePerDecision = 0.35f;
+
 	UPROPERTY(BlueprintAssignable, Category = "Clones")
 	FOnCloneConflict OnCloneConflict;
 
@@ -113,6 +122,8 @@ private:
 	void MakeDecisions();
 	void ResolveIntent(FCloneMindState& State);
 	void ResolveCombat();
+	void ResolveNightRaiders();
+	bool IsShelteredFromSun(const APawn* Pawn) const;
 	APawn* FindNearestOtherPawn(APawn* SourcePawn, float MaxDistance, float& OutDistance) const;
 	float ComputeKillIntent(const FCloneMindState& State, const APawn* Target, float Distance) const;
 	int32 FindStateIndexByPawn(const APawn* Pawn) const;
@@ -120,6 +131,7 @@ private:
 	void CleanupDeadPawns();
 
 	float DecisionAccumulator = 0.0f;
+	bool bWasNightLastTick = false;
 
 	UPROPERTY()
 	TArray<FCloneMindState> CloneStates;
