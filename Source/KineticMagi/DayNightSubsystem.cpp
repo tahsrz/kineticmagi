@@ -65,6 +65,12 @@ void UDayNightSubsystem::SetPaused(bool bInPaused)
 	bPaused = bInPaused;
 }
 
+void UDayNightSubsystem::SetCurrentHour(float InHour)
+{
+	CurrentHour = FMath::Fmod(FMath::Max(0.0f, InHour), 24.0f);
+	CurrentPhase = ResolvePhase(CurrentHour);
+}
+
 EDayPhase UDayNightSubsystem::ResolvePhase(const float Hour) const
 {
 	const float DawnStart = ActiveProfile ? ActiveProfile->DawnStartHour : 5.5f;

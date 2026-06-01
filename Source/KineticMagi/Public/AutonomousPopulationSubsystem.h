@@ -85,6 +85,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Clones")
 	const TArray<FCloneMindState>& GetCloneStates() const { return CloneStates; }
 
+	UFUNCTION(BlueprintPure, Category = "Clones|Debug")
+	int32 GetAliveCloneCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "Clones|Debug")
+	int32 GetNightRaiderCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "Clones|Debug")
+	int32 GetUnshelteredRaiderCount() const;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clones")
 	TSubclassOf<APawn> ClonePawnClass;
 

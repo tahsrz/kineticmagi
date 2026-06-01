@@ -36,6 +36,51 @@ UWorld* UAutonomousPopulationSubsystem::GetTickableGameObjectWorld() const
 	return GetWorld();
 }
 
+int32 UAutonomousPopulationSubsystem::GetAliveCloneCount() const
+{
+	int32 Count = 0;
+	for (const FCloneMindState& State : CloneStates)
+	{
+		if (State.Pawn.IsValid() && !State.Pawn->IsActorBeingDestroyed() && State.HealthNormalized > 0.0f)
+		{
+			++Count;
+		}
+	}
+	return Count;
+}
+
+int32 UAutonomousPopulationSubsystem::GetNightRaiderCount() const
+{
+	int32 Count = 0;
+	for (const FCloneMindState& State : CloneStates)
+	{
+		if (State.bNightRaider && State.Pawn.IsValid() && !State.Pawn->IsActorBeingDestroyed() && State.HealthNormalized > 0.0f)
+		{
+			++Count;
+		}
+	}
+	return Count;
+}
+
+int32 UAutonomousPopulationSubsystem::GetUnshelteredRaiderCount() const
+{
+	int32 Count = 0;
+	for (const FCloneMindState& State : CloneStates)
+	{
+		const APawn* Pawn = State.Pawn.Get();
+		if (!State.bNightRaider || !Pawn || Pawn->IsActorBeingDestroyed() || State.HealthNormalized <= 0.0f)
+		{
+			continue;
+		}
+
+		if (!IsShelteredFromSun(Pawn))
+		{
+			++Count;
+		}
+	}
+	return Count;
+}
+
 void UAutonomousPopulationSubsystem::InitializeCloneClassFromPlayer()
 {
 	UWorld* World = GetWorld();

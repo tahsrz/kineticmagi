@@ -27,6 +27,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DayNight")
 	void SetPaused(bool bInPaused);
 
+	UFUNCTION(BlueprintCallable, Category = "DayNight")
+	void SetCurrentHour(float InHour);
+
 	UFUNCTION(BlueprintPure, Category = "DayNight")
 	float GetCurrentHour() const { return CurrentHour; }
 
