@@ -6,7 +6,6 @@ Saved/
 .vs/
 
 # Unreal assets excluded for lightweight code repo
-Content/
 
 # Dotnet build output
 social-runtime/bin/
